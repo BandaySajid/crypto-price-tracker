@@ -1,5 +1,9 @@
 const process = require('process');
-//BTC-USD
+const EventEmitter = require('events');
+
+class MyEmitter extends EventEmitter{};
+
+const price_update_event = new MyEmitter();
 
 const prices = {};
 if(!process.argv[2]){
@@ -20,7 +24,10 @@ async function update_price(coin){
             }
         });
         const data = await resp.json();
-        prices[coin] = data.askRate;
+        if(prices[coin] !== data.askRate){
+            prices[coin] = data.askRate;
+            price_update_event.emit("price_update");
+        }
     }, 3000);
 }
 
@@ -28,7 +35,10 @@ Object.entries(prices).forEach(async(coin)=>{
     await update_price(coin[0]);
 });
 
-setInterval(()=>{
+price_update_event.on("price_update", ()=>{
     process.stdout.write('\x1Bc')
-    console.log(prices);
-}, 500)
+    for(coin in prices){
+        console.log(`${coin} --> ${prices[coin]}`);
+    }
+    console.log('updating prices in realtime....')
+})
